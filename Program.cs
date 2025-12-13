@@ -1,9 +1,9 @@
-﻿using ApiGrado.Data;
+﻿using Amazon.S3;
+using ApiGrado.Data;
 using ApiGrado.Mappers;
 using ApiGrado.Modelos;
 using ApiGrado.Repositorio;
 using ApiGrado.Repositorio.IRepositorio;
-using Amazon.S3;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -12,20 +12,18 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Npgsql.EntityFrameworkCore.PostgreSQL;
 using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // =====================================================================
-// 1️⃣ BASE DE DATOS
+// 1️⃣ BASE DE DATOS (PostgreSQL - Neon)
 // =====================================================================
-builder.Services.AddDbContext<ApplicationDbContext>(opciones =>
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    opciones.UseNpgsql(builder.Configuration.GetConnectionString("ConexionSql"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("ConexionSql"));
 });
-
 
 // =====================================================================
 // 2️⃣ REPOSITORIOS
@@ -39,12 +37,12 @@ builder.Services.AddScoped<IPedidosRepositorio, PedidoRepositorio>();
 // =====================================================================
 builder.Services.Configure<FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 50 * 1024 * 1024; // 50 MB
+    options.MultipartBodyLengthLimit = 50 * 1024 * 1024;
 });
 
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
-    options.Limits.MaxRequestBodySize = 50 * 1024 * 1024; // 50 MB
+    options.Limits.MaxRequestBodySize = 50 * 1024 * 1024;
 });
 
 builder.Services.Configure<IISServerOptions>(options =>
@@ -57,16 +55,12 @@ builder.Services.Configure<IISServerOptions>(options =>
 // =====================================================================
 var key = builder.Configuration.GetValue<string>("ApiSettings:Secreta");
 
-builder.Services.AddAuthentication(x =>
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+.AddJwtBearer(options =>
 {
-    x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(x =>
-{
-    x.RequireHttpsMetadata = false;
-    x.SaveToken = true;
-    x.TokenValidationParameters = new TokenValidationParameters
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(key)),
@@ -83,22 +77,58 @@ builder.Services.AddAuthorization();
 // =====================================================================
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("PolicyCors", build =>
+    options.AddPolicy("PolicyCors", policy =>
     {
-        build.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
     });
 });
 
 // =====================================================================
 // 6️⃣ CONTROLLERS + JSON
 // =====================================================================
-builder.Services.AddControllers().AddNewtonsoftJson();
+builder.Services.AddControllers()
+    .AddNewtonsoftJson();
 
 // =====================================================================
-// 7️⃣ SWAGGER
+// 7️⃣ SWAGGER (HABILITADO EN PRODUCCIÓN)
 // =====================================================================
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "ApiGrado",
+        Version = "v1"
+    });
+
+    // JWT en Swagger
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Ingrese 'Bearer {token}'"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // =====================================================================
 // 8️⃣ AUTOMAPPER
@@ -106,15 +136,14 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddAutoMapper(typeof(BlogMapper));
 
 // =====================================================================
-// 9️⃣ 🔥 BACKBLAZE B2 (S3 Compatible)
+// 9️⃣ BACKBLAZE B2
 // =====================================================================
-
 builder.Services.AddSingleton<IAmazonS3>(sp =>
 {
     var config = new AmazonS3Config
     {
-        ServiceURL = builder.Configuration["Backblaze:Endpoint"], // ❗ EJ: https://s3.us-west-002.backblazeb2.com
-        ForcePathStyle = true // obligatorio para B2
+        ServiceURL = builder.Configuration["Backblaze:Endpoint"],
+        ForcePathStyle = true
     };
 
     return new AmazonS3Client(
@@ -130,16 +159,17 @@ builder.Services.AddSingleton<IAmazonS3>(sp =>
 var app = builder.Build();
 
 // =====================================================================
-// 11️⃣ SWAGGER
+// 11️⃣ SWAGGER (SIN IF)
 // =====================================================================
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ApiGrado v1");
+    c.RoutePrefix = "swagger";
+});
 
 // =====================================================================
-// 12️⃣ ARCHIVOS ESTÁTICOS (opcional)
+// 12️⃣ ARCHIVOS ESTÁTICOS (Modelos 3D)
 // =====================================================================
 var modelosPath = Path.Combine(Directory.GetCurrentDirectory(), "Modelos3D");
 if (Directory.Exists(modelosPath))
@@ -149,7 +179,7 @@ if (Directory.Exists(modelosPath))
         FileProvider = new PhysicalFileProvider(modelosPath),
         RequestPath = "/Modelos3D",
         ContentTypeProvider = new FileExtensionContentTypeProvider(
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, string>
             {
                 { ".glb", "model/gltf-binary" }
             })

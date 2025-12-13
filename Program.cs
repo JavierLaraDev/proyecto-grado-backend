@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
 using System.Security.Claims;
 using System.Text;
 
@@ -22,8 +23,9 @@ var builder = WebApplication.CreateBuilder(args);
 // =====================================================================
 builder.Services.AddDbContext<ApplicationDbContext>(opciones =>
 {
-    opciones.UseSqlServer(builder.Configuration.GetConnectionString("ConexionSql"));
+    opciones.UseNpgsql(builder.Configuration.GetConnectionString("ConexionSql"));
 });
+
 
 // =====================================================================
 // 2️⃣ REPOSITORIOS

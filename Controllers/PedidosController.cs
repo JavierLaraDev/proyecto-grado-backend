@@ -27,31 +27,62 @@ namespace ApiGrado.Controllers
         {
             if (pedidosDto == null)
             {
-                return BadRequest(ModelState);
+                return BadRequest("El pedido no puede ser nulo");
             }
+
+            if (pedidosDto.Items == null || !pedidosDto.Items.Any())
+            {
+                return BadRequest("El pedido debe contener al menos un item");
+            }
+
+            if (string.IsNullOrWhiteSpace(pedidosDto.ColorBicicleta))
+            {
+                return BadRequest("El color de la bicicleta es obligatorio");
+            }
+
             try
             {
+                // 🔹 MAPEO BASE
                 var pedido = _mapper.Map<PedidosCompras>(pedidosDto);
 
+                // 🔹 ASIGNACIÓN EXPLÍCITA (CLAVE PARA EVITAR ERROR 500)
+                pedido.UsuarioId = pedidosDto.UsuarioId;
+                pedido.FechaCreacion = pedidosDto.FechaCreacion;
+                pedido.PrecioTotal = pedidosDto.PrecioTotal;
+                pedido.Estado = pedidosDto.Estado;
+                pedido.ColorBicicleta = pedidosDto.ColorBicicleta;
+
+                // 🔹 ITEMS
                 pedido.Items = pedidosDto.Items.Select(itemDto => new PedidosItems
                 {
                     AccesorioId = itemDto.AccesorioId,
                     Cantidad = itemDto.Cantidad
                 }).ToList();
 
-                if (!_pedidoRepo.AgregarPedido(pedido))
-                {
-                    ModelState.AddModelError("", $"Algo salió mal al agregar el pedido");
-                    return StatusCode(500, ModelState);
-                }
-                return CreatedAtRoute("GetPedidoPorId", new { pedidoId = pedido.Id }, pedido);
+                // 🔹 GUARDAR
+                _pedidoRepo.AgregarPedido(pedido);
+
+                return CreatedAtRoute(
+                    "GetPedidoPorId",
+                    new { pedidoId = pedido.Id },
+                    pedido
+                );
+            }
+            catch (ArgumentException ex)
+            {
+                // Errores de validación controlados
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError("", $"Ocurrió un error inesperado: {ex.Message}");
-                return StatusCode(500, ModelState);
+                // Error real del servidor
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    $"Error al guardar el pedido: {ex.Message}"
+                );
             }
         }
+
 
         [HttpGet("{pedidoId:int}", Name = "GetPedidoPorId")]
         [ProducesResponseType(StatusCodes.Status200OK)]

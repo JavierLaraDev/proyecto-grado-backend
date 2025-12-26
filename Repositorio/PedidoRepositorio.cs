@@ -96,7 +96,8 @@ namespace ApiGrado.Repositorio
         }
         public bool Guardar()
         {
-            return _bd.SaveChanges() >= 0;
+            _bd.SaveChanges();
+            return true;
         }
     }
 }

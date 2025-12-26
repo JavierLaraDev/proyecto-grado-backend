@@ -96,8 +96,17 @@ namespace ApiGrado.Repositorio
         }
         public bool Guardar()
         {
-            _bd.SaveChanges();
-            return true;
+            try
+            {
+                return _bd.SaveChanges() > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("🔥 ERROR AL GUARDAR EN BD 🔥");
+                Console.WriteLine(ex.InnerException?.Message ?? ex.Message);
+                throw;
+            }
         }
+
     }
 }

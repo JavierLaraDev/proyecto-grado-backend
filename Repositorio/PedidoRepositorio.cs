@@ -16,7 +16,7 @@ namespace ApiGrado.Repositorio
         {
             if (!_bd.Usuarios.Any(u => u.Id == pedido.UsuarioId))
             {
-                throw new ArgumentException($"El usuario con Id {pedido.UsuarioId} no existe.");
+                throw new Exception($"El usuario con Id {pedido.UsuarioId} no existe en la base de datos.");
             }
 
             // No necesitamos establecer PedidosComprasId manualmente

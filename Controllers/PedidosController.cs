@@ -27,40 +27,29 @@ namespace ApiGrado.Controllers
         {
             if (pedidosDto == null)
             {
-                return BadRequest("El pedido no puede ser nulo");
-            }
-
-            if (pedidosDto.Items == null || !pedidosDto.Items.Any())
-            {
-                return BadRequest("El pedido debe contener al menos un item");
-            }
-
-            if (string.IsNullOrWhiteSpace(pedidosDto.ColorBicicleta))
-            {
-                return BadRequest("El color de la bicicleta es obligatorio");
+                return BadRequest(new ApiErrorResponse
+                {
+                    ErrorMessage = "El pedido no puede ser nulo"
+                });
             }
 
             try
             {
-                // 🔹 MAPEO BASE
                 var pedido = _mapper.Map<PedidosCompras>(pedidosDto);
 
-                // 🔹 ASIGNACIÓN EXPLÍCITA (CLAVE PARA EVITAR ERROR 500)
-                pedido.UsuarioId = pedidosDto.UsuarioId;
-                pedido.FechaCreacion = pedidosDto.FechaCreacion;
-                pedido.PrecioTotal = pedidosDto.PrecioTotal;
-                pedido.Estado = pedidosDto.Estado;
-                pedido.ColorBicicleta = pedidosDto.ColorBicicleta;
-
-                // 🔹 ITEMS
                 pedido.Items = pedidosDto.Items.Select(itemDto => new PedidosItems
                 {
                     AccesorioId = itemDto.AccesorioId,
                     Cantidad = itemDto.Cantidad
                 }).ToList();
 
-                // 🔹 GUARDAR
-                _pedidoRepo.AgregarPedido(pedido);
+                if (!_pedidoRepo.AgregarPedido(pedido))
+                {
+                    return StatusCode(500, new ApiErrorResponse
+                    {
+                        ErrorMessage = "No se pudo guardar el pedido"
+                    });
+                }
 
                 return CreatedAtRoute(
                     "GetPedidoPorId",
@@ -68,20 +57,15 @@ namespace ApiGrado.Controllers
                     pedido
                 );
             }
-            catch (ArgumentException ex)
-            {
-                // Errores de validación controlados
-                return BadRequest(ex.Message);
-            }
             catch (Exception ex)
             {
-                // Error real del servidor
-                return StatusCode(
-                    StatusCodes.Status500InternalServerError,
-                    $"Error al guardar el pedido: {ex.Message}"
-                );
+                return StatusCode(500, new ApiErrorResponse
+                {
+                    ErrorMessage = ex.Message
+                });
             }
         }
+
 
 
         [HttpGet("{pedidoId:int}", Name = "GetPedidoPorId")]

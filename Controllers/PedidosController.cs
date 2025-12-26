@@ -23,45 +23,26 @@ namespace ApiGrado.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public IActionResult AgregarPedido([FromBody] PedidosComprasDto pedidosDto)
+        public IActionResult AgregarPedido([FromBody] PedidoCrearDto dto)
         {
-            if (pedidosDto == null)
-            {
-                return BadRequest(new ApiErrorResponse
-                {
-                    ErrorMessage = "El pedido no puede ser nulo"
-                });
-            }
+            if (!ModelState.IsValid)
+                return BadRequest(dto);
 
             try
             {
-                var pedido = _mapper.Map<PedidosCompras>(pedidosDto);
+                var pedido = _mapper.Map<PedidosCompras>(dto);
+                pedido.FechaCreacion = DateTime.Now;
+                pedido.Estado = EstadoPedido.Pendiente;
 
-                pedido.Items = pedidosDto.Items.Select(itemDto => new PedidosItems
-                {
-                    AccesorioId = itemDto.AccesorioId,
-                    Cantidad = itemDto.Cantidad
-                }).ToList();
+                _pedidoRepo.AgregarPedido(pedido);
 
-                if (!_pedidoRepo.AgregarPedido(pedido))
-                {
-                    return StatusCode(500, new ApiErrorResponse
-                    {
-                        ErrorMessage = "No se pudo guardar el pedido"
-                    });
-                }
-
-                return CreatedAtRoute(
-                    "GetPedidoPorId",
-                    new { pedidoId = pedido.Id },
-                    pedido
-                );
+                return Ok(pedido.Id);
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new ApiErrorResponse
                 {
-                    ErrorMessage = ex.Message
+                    ErrorMessage = ex.InnerException?.Message ?? ex.Message
                 });
             }
         }

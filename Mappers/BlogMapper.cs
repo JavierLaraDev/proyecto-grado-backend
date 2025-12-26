@@ -9,15 +9,32 @@ namespace ApiGrado.Mappers
     {
         public BlogMapper()
         {
-            CreateMap<PedidosCompras, PedidosComprasDto>().ReverseMap();
-            CreateMap<PedidosItems, PedidosItemsDto>().ReverseMap();
+            // =========================
+            // PEDIDOS (CREACIÓN)
+            // =========================
+            CreateMap<PedidoCrearDto, PedidosCompras>();
+            CreateMap<PedidoItemCrearDto, PedidosItems>();
+
+            // =========================
+            // PEDIDOS (LECTURA)
+            // =========================
+            CreateMap<PedidosCompras, PedidosComprasDto>();
+            CreateMap<PedidosItems, PedidosItemsDto>();
+
+            // =========================
+            // USUARIOS
+            // =========================
             CreateMap<Usuario, UsuarioDto>().ReverseMap();
             CreateMap<Usuario, UsuarioActualizarDto>().ReverseMap();
+
+            // =========================
+            // ACCESORIOS
+            // =========================
             CreateMap<Accesorio, AccesorioDto>().ReverseMap();
             CreateMap<Accesorio, AccesorioCrearDto>().ReverseMap();
             CreateMap<Accesorio, AccesorioActualizarDto>().ReverseMap();
-           
-           
+
+
         }
     }
 }

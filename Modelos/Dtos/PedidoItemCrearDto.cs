@@ -2,11 +2,12 @@
 
 namespace ApiGrado.Modelos.Dtos
 {
-    public class PedidosItemsDto
+    public class PedidoItemCrearDto
     {
-        public int Id { get; set; }
-        public int Cantidad { get; set; }
-        public AccesorioDto Accesorio { get; set; }
-    }
+        [Required]
+        public int AccesorioId { get; set; }
 
+        [Required]
+        public int Cantidad { get; set; }
+    }
 }

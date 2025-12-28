@@ -23,23 +23,46 @@ namespace ApiGrado.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public IActionResult AgregarPedido([FromBody] PedidoCrearDto dto)
+        public IActionResult AgregarPedido([FromBody] PedidosComprasDto dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(dto);
+                return BadRequest(ModelState);
 
             try
             {
+                // ✅ LOG PARA DEBUG
+                Console.WriteLine($"📥 Recibiendo pedido: UsuarioId={dto.UsuarioId}, Items={dto.Items?.Count ?? 0}");
+
+                // ✅ VALIDAR QUE EL USUARIO EXISTE
+                if (dto.UsuarioId <= 0)
+                {
+                    return BadRequest(new ApiErrorResponse
+                    {
+                        ErrorMessage = "El ID de usuario debe ser mayor a 0"
+                    });
+                }
+
+                // ✅ MAPEAR DTO A ENTIDAD
                 var pedido = _mapper.Map<PedidosCompras>(dto);
+
+                // ✅ ASEGURAR VALORES CORRECTOS
                 pedido.FechaCreacion = DateTime.Now;
                 pedido.Estado = EstadoPedido.Pendiente;
 
+                // ✅ LOG ANTES DE GUARDAR
+                Console.WriteLine($"💾 Guardando pedido: UsuarioId={pedido.UsuarioId}, Items={pedido.Items?.Count ?? 0}");
+
                 _pedidoRepo.AgregarPedido(pedido);
 
-                return Ok(pedido.Id);
+                // ✅ RETORNAR EL PEDIDO COMPLETO
+                var resultado = _mapper.Map<PedidosComprasDto>(pedido);
+                return CreatedAtRoute("GetPedidoPorId", new { pedidoId = pedido.Id }, resultado);
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"❌ Error al crear pedido: {ex.Message}");
+                Console.WriteLine($"❌ Inner Exception: {ex.InnerException?.Message}");
+
                 return StatusCode(500, new ApiErrorResponse
                 {
                     ErrorMessage = ex.InnerException?.Message ?? ex.Message

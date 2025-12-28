@@ -9,16 +9,17 @@ namespace ApiGrado.Mappers
     {
         public BlogMapper()
         {
-            // =========================
-            // PEDIDOS (CREACIÓN)
-            // =========================
-            CreateMap<PedidoCrearDto, PedidosCompras>();
+            // Mapeo de PedidoCrearDto a PedidosCompras
+            CreateMap<PedidoCrearDto, PedidosCompras>()
+                .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Items));
+
+            // Mapeo de PedidosCompras a PedidosComprasDto
+            CreateMap<PedidosCompras, PedidosComprasDto>();
+
+            // Mapeo de PedidoItemCrearDto a PedidosItems
             CreateMap<PedidoItemCrearDto, PedidosItems>();
 
-            // =========================
-            // PEDIDOS (LECTURA)
-            // =========================
-            CreateMap<PedidosCompras, PedidosComprasDto>();
+            // Mapeo de PedidosItems a PedidosItemsDto
             CreateMap<PedidosItems, PedidosItemsDto>();
 
             // =========================

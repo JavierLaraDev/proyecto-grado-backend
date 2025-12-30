@@ -25,34 +25,103 @@ namespace ApiGrado.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public IActionResult AgregarPedido([FromBody] PedidosComprasDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             try
             {
-                // ✅ LOG PARA DEBUG
-                Console.WriteLine($"📥 Recibiendo pedido: UsuarioId={dto.UsuarioId}, Items={dto.Items?.Count ?? 0}");
+                Console.WriteLine("============================================================");
+                Console.WriteLine("📥 PETICIÓN RECIBIDA: POST /api/pedido");
+                Console.WriteLine("============================================================");
 
-                // ✅ VALIDAR QUE EL USUARIO EXISTE
+                // ✅ LOG: Verificar si dto es null
+                if (dto == null)
+                {
+                    Console.WriteLine("❌ DTO ES NULL");
+                    return BadRequest(new ApiErrorResponse { ErrorMessage = "El cuerpo de la petición está vacío" });
+                }
+
+                Console.WriteLine($"✅ DTO recibido (no es null)");
+                Console.WriteLine($"   - UsuarioId: {dto.UsuarioId}");
+                Console.WriteLine($"   - PrecioTotal: {dto.PrecioTotal}");
+                Console.WriteLine($"   - Estado: {dto.Estado}");
+                Console.WriteLine($"   - ColorBicicleta: '{dto.ColorBicicleta ?? "NULL"}'");
+                Console.WriteLine($"   - Items: {dto.Items?.Count ?? 0}");
+
+                if (dto.Items != null && dto.Items.Any())
+                {
+                    for (int i = 0; i < dto.Items.Count; i++)
+                    {
+                        var item = dto.Items[i];
+                        Console.WriteLine($"   Item {i}:");
+                        Console.WriteLine($"      - Cantidad: {item.Cantidad}");
+                        Console.WriteLine($"      - Accesorio es null?: {item.Accesorio == null}");
+                        if (item.Accesorio != null)
+                        {
+                            Console.WriteLine($"      - Accesorio.Id: {item.Accesorio.Id}");
+                        }
+                    }
+                }
+
+                // ✅ VALIDAR ModelState
+                Console.WriteLine($"ModelState.IsValid: {ModelState.IsValid}");
+                if (!ModelState.IsValid)
+                {
+                    Console.WriteLine("❌ ModelState INVÁLIDO:");
+                    foreach (var error in ModelState)
+                    {
+                        Console.WriteLine($"   Campo: {error.Key}");
+                        foreach (var err in error.Value.Errors)
+                        {
+                            Console.WriteLine($"      - Error: {err.ErrorMessage}");
+                            if (err.Exception != null)
+                            {
+                                Console.WriteLine($"      - Exception: {err.Exception.Message}");
+                            }
+                        }
+                    }
+
+                    var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
+                    return BadRequest(new ApiErrorResponse
+                    {
+                        ErrorMessage = "Datos inválidos: " + string.Join("; ", errors)
+                    });
+                }
+
+                // ✅ VALIDAR UsuarioId
                 if (dto.UsuarioId <= 0)
                 {
+                    Console.WriteLine($"❌ UsuarioId inválido: {dto.UsuarioId}");
                     return BadRequest(new ApiErrorResponse
                     {
                         ErrorMessage = "El ID de usuario debe ser mayor a 0"
                     });
                 }
 
+                Console.WriteLine($"✅ Validaciones pasadas. Intentando mapear...");
+
                 // ✅ MAPEAR DTO A ENTIDAD
                 var pedido = _mapper.Map<PedidosCompras>(dto);
+
+                Console.WriteLine($"✅ Mapeo completado:");
+                Console.WriteLine($"   - pedido.UsuarioId: {pedido.UsuarioId}");
+                Console.WriteLine($"   - pedido.Items.Count: {pedido.Items?.Count ?? 0}");
+
+                if (pedido.Items != null)
+                {
+                    for (int i = 0; i < pedido.Items.Count; i++)
+                    {
+                        var item = pedido.Items[i];
+                        Console.WriteLine($"   Item {i} mapeado: AccesorioId={item.AccesorioId}, Cantidad={item.Cantidad}");
+                    }
+                }
 
                 // ✅ ASEGURAR VALORES CORRECTOS
                 pedido.FechaCreacion = DateTime.Now;
                 pedido.Estado = EstadoPedido.Pendiente;
 
-                // ✅ LOG ANTES DE GUARDAR
-                Console.WriteLine($"💾 Guardando pedido: UsuarioId={pedido.UsuarioId}, Items={pedido.Items?.Count ?? 0}");
+                Console.WriteLine($"💾 Guardando en repositorio...");
 
                 _pedidoRepo.AgregarPedido(pedido);
+
+                Console.WriteLine($"✅ Pedido guardado exitosamente con ID: {pedido.Id}");
 
                 // ✅ RETORNAR EL PEDIDO COMPLETO
                 var resultado = _mapper.Map<PedidosComprasDto>(pedido);
@@ -60,8 +129,13 @@ namespace ApiGrado.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error al crear pedido: {ex.Message}");
-                Console.WriteLine($"❌ Inner Exception: {ex.InnerException?.Message}");
+                Console.WriteLine("============================================================");
+                Console.WriteLine($"❌ EXCEPCIÓN EN AgregarPedido:");
+                Console.WriteLine($"   Mensaje: {ex.Message}");
+                Console.WriteLine($"   Inner Exception: {ex.InnerException?.Message ?? "N/A"}");
+                Console.WriteLine($"   StackTrace:");
+                Console.WriteLine(ex.StackTrace);
+                Console.WriteLine("============================================================");
 
                 return StatusCode(500, new ApiErrorResponse
                 {

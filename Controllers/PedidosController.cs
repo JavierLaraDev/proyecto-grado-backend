@@ -29,32 +29,18 @@ namespace ApiGrado.Controllers
             {
                 Console.WriteLine("============================================================");
                 Console.WriteLine("📥 PETICIÓN RECIBIDA: POST /api/pedido");
-                Console.WriteLine("============================================================");
+                Console.WriteLine($"   - UsuarioId: {dto.UsuarioId}");
+                Console.WriteLine($"   - ColorBicicleta: {dto.ColorBicicleta}");
+                Console.WriteLine($"   - PrecioTotal: {dto.PrecioTotal}");
+                Console.WriteLine($"   - Items: {dto.Items?.Count ?? 0}");
 
                 if (dto == null)
                 {
-                    Console.WriteLine("❌ DTO ES NULL");
                     return BadRequest(new ApiErrorResponse { ErrorMessage = "El cuerpo de la petición está vacío" });
                 }
 
-                Console.WriteLine($"✅ DTO recibido:");
-                Console.WriteLine($"   - UsuarioId: {dto.UsuarioId}");
-                Console.WriteLine($"   - PrecioTotal: {dto.PrecioTotal}");
-                Console.WriteLine($"   - ColorBicicleta: '{dto.ColorBicicleta}'");
-                Console.WriteLine($"   - Items: {dto.Items?.Count ?? 0}");
-
                 if (!ModelState.IsValid)
                 {
-                    Console.WriteLine("❌ ModelState INVÁLIDO:");
-                    foreach (var error in ModelState)
-                    {
-                        Console.WriteLine($"   Campo: {error.Key}");
-                        foreach (var err in error.Value.Errors)
-                        {
-                            Console.WriteLine($"      - Error: {err.ErrorMessage}");
-                        }
-                    }
-
                     var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
                     return BadRequest(new ApiErrorResponse
                     {
@@ -64,18 +50,20 @@ namespace ApiGrado.Controllers
 
                 if (dto.UsuarioId <= 0)
                 {
-                    Console.WriteLine($"❌ UsuarioId inválido: {dto.UsuarioId}");
                     return BadRequest(new ApiErrorResponse
                     {
                         ErrorMessage = "El ID de usuario debe ser mayor a 0"
                     });
                 }
 
-                Console.WriteLine($"✅ Validaciones pasadas. Mapeando DTO...");
+                // ✅ VALIDAR QUE LOS ACCESORIOS EXISTAN
+                foreach (var item in dto.Items)
+                {
+                    Console.WriteLine($"   - Validando AccesorioId: {item.AccesorioId}");
+                }
 
-                // Mapear de PedidoCrearDto a PedidosCompras
+                // ✅ MAPEAR DE PedidoCrearDto A PedidosCompras
                 var pedido = _mapper.Map<PedidosCompras>(dto);
-
                 pedido.FechaCreacion = DateTime.UtcNow;
                 pedido.Estado = EstadoPedido.Pendiente;
 
@@ -83,20 +71,15 @@ namespace ApiGrado.Controllers
 
                 _pedidoRepo.AgregarPedido(pedido);
 
-                Console.WriteLine($"✅ Pedido guardado exitosamente con ID: {pedido.Id}");
+                Console.WriteLine($"✅ Pedido guardado con ID: {pedido.Id}");
 
                 var resultado = _mapper.Map<PedidosComprasDto>(pedido);
                 return CreatedAtRoute("GetPedidoPorId", new { pedidoId = pedido.Id }, resultado);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("============================================================");
-                Console.WriteLine($"❌ EXCEPCIÓN EN AgregarPedido:");
-                Console.WriteLine($"   Mensaje: {ex.Message}");
-                Console.WriteLine($"   Inner Exception: {ex.InnerException?.Message ?? "N/A"}");
-                Console.WriteLine($"   StackTrace:");
-                Console.WriteLine(ex.StackTrace);
-                Console.WriteLine("============================================================");
+                Console.WriteLine($"❌ EXCEPCIÓN: {ex.Message}");
+                Console.WriteLine($"   Inner: {ex.InnerException?.Message}");
 
                 return StatusCode(500, new ApiErrorResponse
                 {
@@ -104,8 +87,6 @@ namespace ApiGrado.Controllers
                 });
             }
         }
-
-
 
         [HttpGet("{pedidoId:int}", Name = "GetPedidoPorId")]
         [ProducesResponseType(StatusCodes.Status200OK)]

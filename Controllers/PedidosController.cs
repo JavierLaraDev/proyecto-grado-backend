@@ -23,7 +23,7 @@ namespace ApiGrado.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public IActionResult AgregarPedido([FromBody] PedidosComprasDto dto)
+        public IActionResult AgregarPedido([FromBody] PedidoCrearDto dto)
         {
             try
             {
@@ -31,37 +31,18 @@ namespace ApiGrado.Controllers
                 Console.WriteLine("📥 PETICIÓN RECIBIDA: POST /api/pedido");
                 Console.WriteLine("============================================================");
 
-                // ✅ LOG: Verificar si dto es null
                 if (dto == null)
                 {
                     Console.WriteLine("❌ DTO ES NULL");
                     return BadRequest(new ApiErrorResponse { ErrorMessage = "El cuerpo de la petición está vacío" });
                 }
 
-                Console.WriteLine($"✅ DTO recibido (no es null)");
+                Console.WriteLine($"✅ DTO recibido:");
                 Console.WriteLine($"   - UsuarioId: {dto.UsuarioId}");
                 Console.WriteLine($"   - PrecioTotal: {dto.PrecioTotal}");
-                Console.WriteLine($"   - Estado: {dto.Estado}");
-                Console.WriteLine($"   - ColorBicicleta: '{dto.ColorBicicleta ?? "NULL"}'");
+                Console.WriteLine($"   - ColorBicicleta: '{dto.ColorBicicleta}'");
                 Console.WriteLine($"   - Items: {dto.Items?.Count ?? 0}");
 
-                if (dto.Items != null && dto.Items.Any())
-                {
-                    for (int i = 0; i < dto.Items.Count; i++)
-                    {
-                        var item = dto.Items[i];
-                        Console.WriteLine($"   Item {i}:");
-                        Console.WriteLine($"      - Cantidad: {item.Cantidad}");
-                        Console.WriteLine($"      - Accesorio es null?: {item.Accesorio == null}");
-                        if (item.Accesorio != null)
-                        {
-                            Console.WriteLine($"      - Accesorio.Id: {item.Accesorio.Id}");
-                        }
-                    }
-                }
-
-                // ✅ VALIDAR ModelState
-                Console.WriteLine($"ModelState.IsValid: {ModelState.IsValid}");
                 if (!ModelState.IsValid)
                 {
                     Console.WriteLine("❌ ModelState INVÁLIDO:");
@@ -71,10 +52,6 @@ namespace ApiGrado.Controllers
                         foreach (var err in error.Value.Errors)
                         {
                             Console.WriteLine($"      - Error: {err.ErrorMessage}");
-                            if (err.Exception != null)
-                            {
-                                Console.WriteLine($"      - Exception: {err.Exception.Message}");
-                            }
                         }
                     }
 
@@ -85,7 +62,6 @@ namespace ApiGrado.Controllers
                     });
                 }
 
-                // ✅ VALIDAR UsuarioId
                 if (dto.UsuarioId <= 0)
                 {
                     Console.WriteLine($"❌ UsuarioId inválido: {dto.UsuarioId}");
@@ -95,25 +71,11 @@ namespace ApiGrado.Controllers
                     });
                 }
 
-                Console.WriteLine($"✅ Validaciones pasadas. Intentando mapear...");
+                Console.WriteLine($"✅ Validaciones pasadas. Mapeando DTO...");
 
-                // ✅ MAPEAR DTO A ENTIDAD
+                // Mapear de PedidoCrearDto a PedidosCompras
                 var pedido = _mapper.Map<PedidosCompras>(dto);
 
-                Console.WriteLine($"✅ Mapeo completado:");
-                Console.WriteLine($"   - pedido.UsuarioId: {pedido.UsuarioId}");
-                Console.WriteLine($"   - pedido.Items.Count: {pedido.Items?.Count ?? 0}");
-
-                if (pedido.Items != null)
-                {
-                    for (int i = 0; i < pedido.Items.Count; i++)
-                    {
-                        var item = pedido.Items[i];
-                        Console.WriteLine($"   Item {i} mapeado: AccesorioId={item.AccesorioId}, Cantidad={item.Cantidad}");
-                    }
-                }
-
-                // ✅ ASEGURAR VALORES CORRECTOS
                 pedido.FechaCreacion = DateTime.Now;
                 pedido.Estado = EstadoPedido.Pendiente;
 
@@ -123,7 +85,6 @@ namespace ApiGrado.Controllers
 
                 Console.WriteLine($"✅ Pedido guardado exitosamente con ID: {pedido.Id}");
 
-                // ✅ RETORNAR EL PEDIDO COMPLETO
                 var resultado = _mapper.Map<PedidosComprasDto>(pedido);
                 return CreatedAtRoute("GetPedidoPorId", new { pedidoId = pedido.Id }, resultado);
             }

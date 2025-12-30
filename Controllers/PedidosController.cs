@@ -76,7 +76,7 @@ namespace ApiGrado.Controllers
                 // Mapear de PedidoCrearDto a PedidosCompras
                 var pedido = _mapper.Map<PedidosCompras>(dto);
 
-                pedido.FechaCreacion = DateTime.Now;
+                pedido.FechaCreacion = DateTime.UtcNow;
                 pedido.Estado = EstadoPedido.Pendiente;
 
                 Console.WriteLine($"💾 Guardando en repositorio...");

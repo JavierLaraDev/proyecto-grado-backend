@@ -7,15 +7,11 @@ namespace ApiGrado.Modelos.Dtos
         [Required]
         public int UsuarioId { get; set; }
 
-        public List<PedidoItemCrearDto> Items { get; set; } = new List<PedidoItemCrearDto>();
-
-        public DateTime FechaCreacion { get; set; }
+        [Required]
+        public string ColorBicicleta { get; set; }
 
         public double PrecioTotal { get; set; }
 
-        public EstadoPedido Estado { get; set; }
-
-        [Required]
-        public string ColorBicicleta { get; set; }
+        public List<PedidoItemCrearDto> Items { get; set; }
     }
 }
